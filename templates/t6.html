@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seee</title>
+    <style>
+        #audioPlayer {
+            display: none;
+        }
+        
+        body {
+            font-family: '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            /* background: linear-gradient(to bottom, #e0eafc, #a1c4fd, #c2e9fb); 調整背景顏色為藍紫色系 */
+            background: linear-gradient(to bottom, #f1f0e6, #f1f0e6, #f1f0e6);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start; 
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+    
+        h1 {
+            margin: 10px 0 15px 0; 
+            font-size: 2em;
+            font-weight: 600;
+            color: #03A9F4; 
+        }
+    
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+            width: 90%;
+        }
+    
+        .button {
+            padding: 30px 30px;
+            font-size: 1em;
+            border: none;
+            border-radius: 18px;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            outline: none;
+            width: 100%;
+            margin: 0 auto;
+        }
+    
+        .button:active {
+            transform: scale(0.97);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+        }
+    
+        .normal-check {
+            background-color: #007AFF;
+            background-image: linear-gradient(to bottom, #5AC8FA, #007AFF);
+            /* background-image: linear-gradient(to bottom, #5d5c5e, #1E2125); */
+        }
+    
+        .target-check {
+            background-color: #007AFF;
+            background-image: linear-gradient(to bottom, #5AC8FA, #007AFF);
+            /* background-image: linear-gradient(to bottom, #5d5c5e, #1E2125); */
+        }
+        
+        .precise-check {
+            background-color: #FF4500;
+            background-image: linear-gradient(to bottom, #A1CD6E, #8BC34A);
+            /* background-image: linear-gradient(to bottom, #7f7f80, #7f7f80); */
+        }
+    
+        .message {
+            margin-top: 10px;
+            font-size: 16px;
+            color: white;
+            background-color: #4ca3fada;
+            padding: 10px;
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 80%;
+        }
+    
+        #video {
+            width: 90%;
+            max-width: 320px;
+            height: 150px;
+            background: #000;
+            border-radius: 18px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 10px;
+        }
+    
+        #target-name {
+            padding: 15px;
+            font-size: 1em;
+            margin-top: 10px;
+            border-radius: 15px;
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            width: 80%;
+        }
+    
+        @media (min-width: 600px) {
+            #video {
+                width: 480px;
+                height: 360px;
+            }
+    
+            #target-name {
+                font-size: 1em;
+                width: 60%;
+            }
+    
+            .button {
+                font-size: 1.2em;
+            }
+    
+            .button-container {
+                flex-direction: row;
+                gap: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Seee</h1>
+    <video id="video" autoplay></video>
+    <input type="text" id="target-name" placeholder="請輸入目標物體名稱（中英文皆可）">
+    <div class="button-container">
+        <button class="button normal-check" onclick="captureFrame('normal')">普通檢測</button>
+        <button class="button target-check" onclick="captureFrame('target')">目標檢測</button>
+        <button class="button precise-check" onclick="captureFrame('precise')">精準檢測</button>
+    </div>
+    <div class="message" id="message"></div>
+    <audio id="audio" preload="auto"></audio>
+    <audio id="audioPlayer" controls></audio>
+    <script>
+        const video = document.getElementById('video');
+        const messageElement = document.getElementById('message');
+        const targetNameInput = document.getElementById('target-name');
+        const audioElement = document.getElementById('audio');
+        let recognition;
+
+        function isIOS() {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        }
+
+        async function startVideo() {
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    console.log(`Video dimensions: ${video.videoWidth}x${video.videoHeight}`);
+                    video.play();
+                };
+            } catch (err) {
+                console.error("Error accessing camera: ", err);
+                alert("Error accessing camera: " + err.message);
+                messageElement.innerText = `錯誤：無法訪問攝像頭 - ${err.message}`;
+            }
+        }
+
+        startVideo();
+
+        function captureFrame(mode) {
+            if (!video.videoWidth || !video.videoHeight) {
+                console.error("Video dimensions are not available.");
+                messageElement.innerText = "錄製尺寸不可用。";
+                return;
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg');
+            console.log("Captured frame data URL:", dataUrl.slice(0, 100));
+            if (dataUrl.startsWith("data:image/jpeg")) {
+                const targetName = mode === 'target' || mode === 'precise' ? targetNameInput.value.trim() : null;
+                const precise = mode === 'precise';
+                sendFrameToServer(dataUrl, targetName, precise, mode);
+            } else {
+                console.error("Captured data is not a valid image URL.");
+                messageElement.innerText = "錄製的數據不是有效的圖像 URL。";
+            }
+        }
+
+        function startTargetDetection() {
+            const utterance = new SpeechSynthesisUtterance("請說出目標物體名稱。");
+            utterance.lang = 'zh-TW';
+
+            speechSynthesis.speak(utterance);
+            utterance.onend = () => {
+                messageElement.innerText = "請說出目標物體名稱。";
+                startListeningForTargetName();
+            };
+        }
+
+        function startListeningForTargetName() {
+            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = 'zh-TW';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript.trim();
+                messageElement.innerText = `目標物體名稱：${transcript}`;
+                targetNameInput.value = transcript;
+                captureFrame('target');
+            };
+
+            recognition.onerror = (event) => {
+                messageElement.innerText = `語音識別錯誤：${event.error}`;
+            };
+
+            recognition.onend = () => {
+                startListening();  // 重新啟動 startListening 函數
+            };
+
+            recognition.start();
+        }
+
+        function startListening() {
+            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = 'zh-TW';
+            recognition.continuous = true;
+            recognition.interimResults = false;
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+                messageElement.innerText = `語音指令：${transcript}`;
+
+                if (transcript.includes("普通檢測")) {
+                    captureFrame('normal');
+                } else if (transcript.includes("目標檢測")) {
+                    startTargetDetection();
+                } else if (transcript.includes("精準檢測")) {
+                    const targetName = targetNameInput.value.trim();
+                    if (targetName) {
+                        captureFrame('precise');
+                    } else {
+                        messageElement.innerText = "無法進行精準檢測，請先進行目標檢測並輸入目標物體名稱。";
+                    }
+                } else {
+                    messageElement.innerText = `未知的語音指令：${transcript}`;
+                }
+            };
+
+            recognition.onerror = (event) => {
+                messageElement.innerText = `語音識別錯誤：${event.error}`;
+            };
+
+            recognition.onend = () => {
+                setTimeout(() => {
+                    recognition.start();
+                }, 1000);
+            };
+
+            recognition.start();
+        }
+        async function sendFrameToServer(dataUrl, targetName, precise, mode) {
+            console.log("Sending frame to server with target:", targetName, "precise:", precise);
+            try {
+                const response = await fetch('/process_frame', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ image: dataUrl, target_name: targetName, precise: precise })
+                });
+
+                if (!response.ok) {
+                    throw new Error('網絡響應失敗');
+                }
+
+                const data = await response.json();
+                console.log("Server response:", data);
+                displayAndPrepareMessage(data);
+                //if (mode === 'normal') { playAudio(data.mp3_list); } else { displayAndPrepareMessage(data); } //普通模式以立體聲(左右聲道)mp3檔播放                
+
+            } catch (error) {
+                console.error('Error:', error);
+                messageElement.innerText = '錯誤：處理錄製時出現問題 - ' + error.message;
+            }
+        }
+
+        function playAudio(mp3_list) {
+            let currentIndex = 0;
+            const audioPlayer = document.getElementById('audioPlayer');
+
+            function playNext() {
+                if (currentIndex < mp3_list.length) {
+                    const element = mp3_list[currentIndex];
+                    fetch(`/play/${element}`)
+                        .then(response => response.blob())
+                        .then(blob => {
+                            const audioUrl = URL.createObjectURL(blob);
+                            audioPlayer.src = audioUrl;
+                            audioPlayer.onended = () => {
+                                currentIndex++;
+                                playNext();
+                            };
+                            audioPlayer.play();
+                        })
+                        .catch(error => console.error('Error:', error));
+                } else {
+                    console.log('播放列表結束');
+                }
+            }
+
+            playNext();  // 開始播放第一個音檔
+        }
+        
+        function displayAndPrepareMessage(data) {
+            const lastMessage = data.message;
+            messageElement.innerText = lastMessage;
+
+            if (window.speechSynthesis && !isIOS()) {
+                const utterance = new SpeechSynthesisUtterance(lastMessage);
+                utterance.lang = 'zh-TW';
+
+                speechSynthesis.speak(utterance);
+                utterance.onend = () => {
+                    const audioBlob = new Blob([new Uint8Array()], { type: 'audio/wav' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    audioElement.src = audioUrl;
+                    audioElement.play();
+                };
+            } else {
+                console.error("此瀏覽器不支持語音合成 API 或在 iOS 上使用。");
+                messageElement.innerText = "此瀏覽器不支持語音合成 API 或在 iOS 上使用。";
+            }
+        }
+
+        window.onload = () => {
+            startListening();
+        };
+    </script>
+</body>
+</html>
