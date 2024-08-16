@@ -11,7 +11,7 @@
         
         body {
             font-family: '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-            /* background: linear-gradient(to bottom, #e0eafc, #a1c4fd, #c2e9fb); 調整背景顏色為藍紫色系 */
+            /* background: linear-gradient(to bottom, #e0eafc, #a1c4fd, #c2e9fb); */
             background: linear-gradient(to bottom, #f1f0e6, #f1f0e6, #f1f0e6);
             display: flex;
             flex-direction: column;
@@ -342,8 +342,8 @@
                     audioElement.play();
                 };
             } else {
-                console.error("此瀏覽器不支持語音合成 API 或在 iOS 上使用。");
-                messageElement.innerText = "此瀏覽器不支持語音合成 API 或在 iOS 上使用。";
+                console.error("此瀏覽器不支援語音合成API或在iOS上使用。");
+                messageElement.innerText = "此瀏覽器不支援語音合成API或在iOS上使用。";
             }
         }
 
